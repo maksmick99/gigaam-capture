@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gigaam-capture"
+version = "0.1.0"
+description = "Cross-platform desktop capture app for short-form speech transcription with GigaAM."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "GigaAM Capture Contributors" },
+]
+dependencies = [
+    "PySide6>=6.8",
+    "platformdirs>=4.3",
+    "pynput>=1.8",
+    "sounddevice>=0.5",
+    "soundfile>=0.13",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+]
+
+[project.scripts]
+gigaam-capture = "gigaam_capture.__main__:main"
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["gigaam_capture*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.black]
+line-length = 88
+
+[tool.isort]
+profile = "black"
