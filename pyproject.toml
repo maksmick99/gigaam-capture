@@ -20,8 +20,27 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+asr = [
+    # `gigaam` is not published on PyPI in a current form (PyPI only has a stale
+    # 0.1.0 release), so the ASR runtime is installed from its source repository.
+    "gigaam @ git+https://github.com/salute-developers/GigaAM.git",
+]
+macos = [
+    "pyobjc-framework-Quartz>=10.3; sys_platform == 'darwin'",
+    "pyobjc-framework-ApplicationServices>=10.3; sys_platform == 'darwin'",
+    "pyobjc-framework-Cocoa>=10.3; sys_platform == 'darwin'",
+]
+windows = [
+    # The Win32 focus lookup uses ``ctypes`` from the standard library; only the
+    # optional UI Automation inspection needs a third-party dependency.
+    "comtypes>=1.4; sys_platform == 'win32'",
+]
 dev = [
     "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "black>=24.10",
+    "isort>=5.13",
+    "ruff>=0.7",
 ]
 
 [project.scripts]
@@ -36,9 +55,20 @@ include = ["gigaam_capture*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]
+markers = [
+    "model: requires the GigaAM runtime and downloaded model weights",
+]
 
 [tool.black]
 line-length = 88
 
 [tool.isort]
 profile = "black"
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

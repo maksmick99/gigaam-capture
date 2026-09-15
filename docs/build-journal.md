@@ -443,3 +443,136 @@ This improves the real debugging loop for messenger integrations:
 ## Summary
 
 The new project started as a consciously separate, scalable desktop app scaffold rather than an extension of the core `gigaam` package. The main product constraint already captured in the architecture is that future integrations with messenger apps should work through a dedicated active-input automation layer, not through ad hoc application-specific logic spread across the codebase.
+
+## Dialogue Log Continuation: hardening, Windows parity, and reproducibility
+
+> Note: the app now lives at the repository root (`src/gigaam_capture`), while
+> the earlier entries in this journal still describe the original
+> `apps/gigaam-capture` layout inside the GigaAM repository.
+
+### Step 18. Reproducible environment and quality gates
+
+**Assistant**
+
+Closed the gap between "tests pass on the author's machine" and "tests pass from
+a clean clone":
+
+- `pyproject.toml`: added `pythonpath = ["src"]` so pytest works without an
+  editable install, declared extras `asr` (git dependency on GigaAM, because
+  PyPI only hosts a stale `gigaam` 0.1.0), `macos` (pyobjc frameworks),
+  `windows` (comtypes), and extended `dev` with `pytest-cov`, `black`, `isort`,
+  and `ruff` plus a ruff lint configuration.
+- `services/transcription.py`: the `gigaam` import became lazy with a
+  user-actionable error, so the app and the test suite run without the ASR
+  runtime.
+- Added `.github/workflows/ci.yml`: matrix `ubuntu`/`macos`/`windows` x Python
+  3.10/3.12, offscreen Qt, ruff, pytest with coverage, and a capability report
+  through the new diagnostics command.
+
+**Validation**
+
+- `python -m pytest -q` ran green on Windows from a clean checkout without an
+  editable install.
+- `python -m pip install -e ".[dev]"` produced the console script and a working
+  `python -m gigaam_capture.inspect`.
+
+### Step 19. Fixing the P0 defects in the capture flow
+
+**Assistant**
+
+Worked through the failure modes found during the audit:
+
+- **Delivery could permanently freeze the app.** `AppController` called
+  `deliver()` inside a Qt slot without error handling, so a failing
+  `active-text-field` paste skipped the `idle` transition and left the app in
+  `transcribing` until restart. Delivery now returns a `DeliveryOutcome`,
+  records a `delivery_status` in history, emits `delivery_failed`, moves to
+  `error`, and can fall back to the clipboard (`fallback_to_clipboard`).
+- **An unsupported target crashed the next start.** `create_output_target` now
+  raises a domain `UnsupportedTargetError`, `platform` reports capabilities, the
+  settings dialog offers only supported targets, settings are applied before
+  being persisted, and startup replaces an unsupported saved mode with clipboard
+  delivery plus a warning.
+- **Recording duration was wrong.** The service allocated a fixed-size buffer and
+  reported `len(buffer) / sample_rate`, i.e. always the configured maximum. It
+  now collects chunks through an injectable recorder, reports the real frame
+  count, truncates at the limit, exposes `elapsed_seconds`/`remaining_seconds`,
+  and finishes automatically through `poll()` called by a controller `QTimer`.
+- **Shutdown leaked the capture stream.** `AppController.shutdown()` stops an
+  active recording and logs the discarded audio path.
+- **Settings could crash startup.** `settings_from_payload` ignores unknown keys
+  and replaces invalid values with defaults; hotkeys are validated through
+  `pynput` parsing with a friendly message, and the default hotkey is now
+  platform-aware (`<cmd>+<shift>+r` on macOS, `<ctrl>+<alt>+r` elsewhere).
+- Removed dead code (`AccessibilityAutomationPlan`, `PLANNED_AUTOMATION`,
+  `QDesktopServicesShim`) and replaced the fragile `.wav` → `.txt` string
+  substitution with `Path.with_suffix`.
+
+**Validation**
+
+- New test modules cover delivery fallback, failed delivery without fallback,
+  clipboard fallback failure, recovery after failure, recording duration and
+  auto-stop, settings robustness, hotkey validation, and platform gating.
+- The suite grew from 22 to 86 passing tests; ruff is clean.
+
+### Step 20. Windows active-text-field parity
+
+**User**
+
+Chose to implement Windows parity first so the app can be developed and verified
+on the primary machine.
+
+**Assistant**
+
+Split the platform layer and implemented the Windows backend:
+
+- extracted shared types into `platform/targets.py` (`ActiveAppAutomation`,
+  `ActiveTargetInfo`, `AppProfile`, `AutomationPermissionError`) and moved the
+  macOS backend into `platform/macos.py`;
+- added `platform/windows.py` with a `ctypes` Win32 adapter (foreground window,
+  window text, class name, focused window through `GetGUIThreadInfo`, process
+  image name through `QueryFullProcessImageNameW`) — no pywin32 dependency;
+- added `platform/windows_uia.py`, which reads the focused UI Automation element
+  through COM (`comtypes`) and maps control type ids to readable names;
+- focus validation prefers UI Automation control types (`Edit`, `Document`,
+  `ComboBox`) and falls back to a window-class allowlist with per-process
+  profiles for chat clients and browsers;
+- paste uses `Ctrl+V` through `pynput`, with an explicit UIPI/elevation hint when
+  synthesised input is blocked;
+- `platform/automation.py` became a facade with platform dispatch, keeping the
+  historical import path working.
+
+**Validation**
+
+- Windows backend tests cover profile resolution, UI Automation acceptance and
+  rejection, the Win32 fallback (including Qt shells only for Qt-aware profiles),
+  validation before clipboard access, and the platform factory.
+- Live verification on Windows: the Win32 adapter read the foreground window,
+  class and process; UI Automation reported the focused control as `Edit`; the
+  diagnostics command reported
+  `active-text-field: available (Windows UI Automation + Win32 paste)`.
+
+### Step 21. Diagnostics, logging, and documentation
+
+**Assistant**
+
+Made the capture flow observable and the documentation truthful:
+
+- added `gigaam_capture/log.py` with a rotating file handler
+  (`<user data dir>/logs/app.log`, 1 MB x 3) and a stream handler limited to
+  warnings so CLI output stays clean;
+- added `python -m gigaam_capture.inspect` (`--json`, `--no-active-target`) that
+  reports capabilities, the chosen inspector, the active target, and exits
+  non-zero when inspection fails;
+- rewrote `docs/architecture.md` around the platform layer, delivery behavior,
+  recording behavior, and observability; added `docs/platform-notes.md` with
+  permission requirements and a manual Windows test matrix;
+- fixed `docs/roadmap.md` (escaped Markdown that never rendered) and added a
+  status section listing what shipped and what remains;
+- updated `README.md` for the current install/run flow, the platform support
+  table, diagnostics, and output modes.
+
+**Validation**
+
+- `python -m gigaam_capture.inspect` reported real capability and focus data on
+  Windows and returned exit code 0; failure paths are covered by tests.

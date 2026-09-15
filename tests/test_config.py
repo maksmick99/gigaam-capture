@@ -5,7 +5,11 @@ from PySide6.QtCore import QCoreApplication
 
 from gigaam_capture.config import SettingsStore, build_app_paths, ensure_app_dirs
 from gigaam_capture.models import AppSettings
-from gigaam_capture.output_targets import ActiveTextFieldTarget, ClipboardTarget, create_output_target
+from gigaam_capture.output_targets import (
+    ActiveTextFieldTarget,
+    ClipboardTarget,
+    create_output_target,
+)
 from gigaam_capture.platform.automation import (
     ActiveTargetInfo,
     AutomationPermissionError,
@@ -104,6 +108,8 @@ def test_create_output_target_clipboard():
 def test_create_output_target_active_text_field_uses_platform_factory():
     fake_automation = object()
     with patch(
+        "gigaam_capture.output_targets.is_target_supported", return_value=True
+    ), patch(
         "gigaam_capture.output_targets.create_active_app_automation",
         return_value=fake_automation,
     ):
@@ -139,7 +145,9 @@ def test_controller_switches_output_target_with_settings(tmp_path: Path):
         def deliver(self, text):
             raise AssertionError("not used")
 
-    with patch("gigaam_capture.ui.tray.create_output_target", return_value=FakeTarget()):
+    with patch(
+        "gigaam_capture.ui.tray.create_output_target", return_value=FakeTarget()
+    ):
         controller = AppController(
             paths,
             settings,
