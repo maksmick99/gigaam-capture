@@ -574,5 +574,31 @@ Made the capture flow observable and the documentation truthful:
 
 **Validation**
 
-- `python -m gigaam_capture.inspect` reported real capability and focus data on
-  Windows and returned exit code 0; failure paths are covered by tests.
+### Step 22. Pinned GigaAM revision and real-model smoke test
+
+**Assistant**
+
+Closed the two remaining reproducibility gaps from the M4 plan (``Шаг 1`` and
+``Шаг 5``):
+
+- Pinned the ASR runtime to commit `7447938d791c4f3e643386ee22c33777004293a5`
+  of `salute-developers/GigaAM` (the `main` head at the time of pinning) in the
+  `asr` extra of `pyproject.toml`, so a fresh environment no longer follows a
+  floating `main`. The README now documents both the explicit `git checkout`
+  path and the `.[asr]` install path. The recommended `third_party/gigaam`
+  submodule from the plan remains a follow-up; the pinned-SHA git install
+  satisfies the milestone's reproducibility acceptance without adding submodule
+  plumbing to the source tree.
+- Added `tests/test_model_smoke.py`, tagged `@pytest.mark.model`, which loads
+  the default `v3_e2e_rnnt` model and transcribes a short generated WAV. The
+  test is excluded from the fast suite by the `model` marker (and skips via
+  `importorskip` when the ASR runtime is absent), so `pytest` stays model-free
+  and requires no OS permissions by default.
+
+**Remaining for M4 (requires a clean Windows 10/11 x64 host)**
+
+- Run the real-model smoke against `v3_e2e_rnnt` on Windows (``Шаг 7``) and
+  record the results in `docs/platform-notes.md`.
+- Final manual capture matrix (hotkey → recording → transcription → clipboard →
+  active-field paste → fallback → shutdown) on Windows.
+

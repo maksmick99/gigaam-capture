@@ -40,12 +40,15 @@ clipboard delivery at startup instead of crashing the app.
 
 `gigaam` is not published to PyPI in a current form, so install the base library
 from its source repository first, then install this app into the same
-environment.
+environment. The GigaAM revision is pinned to commit
+`7447938d791c4f3e643386ee22c33777004293a5` so a fresh environment always builds
+the same code rather than following `main`.
 
 ```bash
 # 1) Install the GigaAM library (from its own checkout)
 git clone https://github.com/salute-developers/GigaAM.git
 cd GigaAM
+git checkout 7447938d791c4f3e643386ee22c33777004293a5
 python3 -m venv .venv
 source .venv/bin/activate            # Windows: .venv\Scripts\activate
 python -m pip install --upgrade pip
@@ -58,6 +61,13 @@ python -m pip install -e ".[dev]"
 # 3) Platform extras (optional but recommended)
 python -m pip install -e ".[windows]"   # UI Automation introspection on Windows
 python -m pip install -e ".[macos]"     # pyobjc frameworks on macOS
+```
+
+Alternatively, the ASR runtime can be installed directly from the pinned
+revision through the `asr` extra (requires `git` on `PATH`):
+
+```bash
+python -m pip install -e ".[asr]"
 ```
 
 Install `ffmpeg` and make sure it is on `PATH`, then grant microphone (and, for
@@ -93,6 +103,15 @@ description without starting recording or transcription.
 ```bash
 python -m pytest -q          # tests (src layout is wired through pytest's pythonpath)
 python -m ruff check src tests
+```
+
+The regular suite stays fast and needs neither the model nor OS permissions. A
+real-runtime smoke test (load `v3_e2e_rnnt`, transcribe a short WAV) is tagged
+with the `model` marker and only runs when explicitly requested, after the
+`asr` extra has been installed:
+
+```bash
+python -m pytest -m model -q tests/test_model_smoke.py
 ```
 
 ## Output modes

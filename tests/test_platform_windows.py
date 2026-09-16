@@ -228,6 +228,9 @@ def test_factory_returns_macos_backend_on_darwin():
 def test_factory_returns_windows_backend_on_win32():
     with patch(
         "gigaam_capture.platform.windows.create_focus_inspector", return_value=None
+    ), patch(
+        "gigaam_capture.platform.windows.Win32AutomationApi",
+        return_value=FakeWindowsApi(),
     ):
         with patch("sys.platform", "win32"):
             automation = create_active_app_automation()

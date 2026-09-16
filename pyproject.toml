@@ -23,7 +23,9 @@ dependencies = [
 asr = [
     # `gigaam` is not published on PyPI in a current form (PyPI only has a stale
     # 0.1.0 release), so the ASR runtime is installed from its source repository.
-    "gigaam @ git+https://github.com/salute-developers/GigaAM.git",
+    # The revision is pinned to a known-compatible commit so an environment is
+    # reproducible instead of following whatever happens to be on `main`.
+    "gigaam @ git+https://github.com/salute-developers/GigaAM.git@7447938d791c4f3e643386ee22c33777004293a5",
 ]
 macos = [
     "pyobjc-framework-Quartz>=10.3; sys_platform == 'darwin'",
